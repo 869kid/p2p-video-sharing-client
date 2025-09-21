@@ -103,6 +103,31 @@ Set `APP_PORT` before running Compose if you need a different host port: `APP_PO
 container listens on `$PORT` (default `8080`) and serves the compiled static frontend alongside the Node.js backend built
 inside the image.
 
+## CI/CD automation
+
+The `deploy` GitHub Actions workflow publishes the Docker image to GHCR when the `CI` workflow finishes on `main` or when tags
+matching `v*` are pushed. It reuses the multi-stage Dockerfile and updates remote hosts over SSH when the necessary secrets
+are available.
+
+### Required secrets
+
+Configure the following repository secrets so the workflow can publish images and trigger remote deployments:
+
+- `SSH_HOST` — SSH hostname or IP address of the deployment target.
+- `SSH_USER` — SSH user with permissions to pull the repository and manage Docker.
+- `SSH_KEY` — Private key matching the authorized deploy key on the target host.
+- `DEPLOY_PATH` — Absolute path to the Git repository on the remote server.
+- `GHCR_TOKEN` — Personal access token or fine-grained token with `packages:read` access for `ghcr.io`.
+
+### Image tag format
+
+Every build pushed by the workflow includes the following tags so you can choose the appropriate image reference in Docker
+Compose or other tooling:
+
+- `sha-<full commit SHA>` — immutable reference for the exact commit that triggered the build.
+- `latest` — convenience tag published for the `main` branch and `v*` release tags.
+- `<branch-or-tag>` — sanitized branch name (e.g., `main`) for branch builds or the Git tag name (e.g., `v1.2.3`).
+
 ## SyncPlay-like control flow
 
 - Clients connect to `/ws` and send `{ type: "join", roomId, userName }`.
