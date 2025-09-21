@@ -1,0 +1,27 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+input,
+button {
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(30, 41, 59, 0.6);
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+button:hover {
+  background: rgba(59, 130, 246, 0.5);
+}

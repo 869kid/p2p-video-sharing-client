@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log*
+.DS_Store
+.env
+.env.local
+server/dist
+web/node_modules
+web/dist
+server/node_modules
+coverage
