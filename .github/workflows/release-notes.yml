@@ -1,0 +1,25 @@
+name: Release Notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create the release from'
+        required: true
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish release notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
