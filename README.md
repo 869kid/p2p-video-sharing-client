@@ -30,7 +30,7 @@ Jellyfin (origin) ──▶ Jellyfin P2P Watch server ──▶ Browser client w
    ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"}]
    ENABLE_HLS_PROXY=false
    ```
-2. Build and start the stack with Docker Compose (the helper script `./scripts/dev.sh` wraps the same command):
+2. Build and start the stack with Docker Compose:
    ```bash
    docker compose up --build
    ```
@@ -59,19 +59,15 @@ If you already have a signed HLS manifest, pass it via `?m3u8=...` or fill it in
   - `src/ui.ts` — Form handling, playback controls, simple stats display.
   - `src/main.ts` — Bootstraps the UI and loads runtime config.
 
-- **Scripts**
-  - `scripts/dev.sh` — wrapper around `docker compose up --build` for local runs.
-  - `scripts/build.sh` — wrapper around `docker compose build` (defaults to the `app` service).
-
 ## Building & running
 
 The multi-stage Dockerfile builds the frontend and backend automatically. Use Docker Compose to produce and run the container image:
 
 ```bash
-./scripts/build.sh         # docker compose build app
-docker compose up -d app   # Start the stack in the background
-docker compose logs -f app # Follow logs
-docker compose down        # Stop and clean up containers and networks
+docker compose build app    # Build the app image
+docker compose up -d app    # Start the stack in the background
+docker compose logs -f app  # Follow logs
+docker compose down         # Stop and clean up containers and networks
 ```
 
 For one-off commands inside the container you can use `docker compose run --rm app <command>`.
