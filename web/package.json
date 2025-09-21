@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --reporter=default --reporter=junit --outputFile=vitest-report.xml"
   },
   "dependencies": {
     "hls.js": "^1.5.13",

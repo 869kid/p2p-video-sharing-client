@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [server, web]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint server
+        if: matrix.target == 'server'
+        run: npx eslint "server/src/**/*.ts"
+
+      - name: Lint web
+        if: matrix.target == 'web'
+        run: npx eslint "web/src/**/*.ts"
+
+      - name: Build
+        run: npm run build --prefix ${{ matrix.target }}
+
+      - name: Test
+        run: npm run test --workspace ${{ matrix.target }} -- --coverage --coverage.reporter=lcov
+
+      - name: Upload coverage and test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-coverage
+          path: |
+            ${{ matrix.target }}/coverage/lcov.info
+            ${{ matrix.target }}/vitest-report.xml
+          if-no-files-found: ignore
