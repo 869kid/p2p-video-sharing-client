@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS builder
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 
 # Install dependencies using npm workspaces
@@ -9,9 +9,16 @@ COPY server/package*.json server/
 COPY web/package*.json web/
 RUN npm ci
 
-# Copy source files and build both the frontend and backend
+FROM base AS ci
+
+# Copy source files and run the CI tasks (lint, test, build)
 COPY . .
+RUN npm run lint
+RUN npm run test --workspace server -- --coverage --coverage.reporter=lcov
+RUN npm run test --workspace web -- --coverage --coverage.reporter=lcov
 RUN npm run build
+
+FROM ci AS builder
 
 # Remove development dependencies to slim down the final image
 RUN npm prune --omit=dev

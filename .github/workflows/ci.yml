@@ -4,99 +4,67 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  quality:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [server, web]
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint server
-        if: matrix.target == 'server'
-        run: npx eslint "server/src/**/*.ts"
-
-      - name: Lint web
-        if: matrix.target == 'web'
-        run: npx eslint "web/src/**/*.ts"
-
-      - name: Build
-        run: npm run build --prefix ${{ matrix.target }}
-
-      - name: Test
-        run: npm run test --workspace ${{ matrix.target }} -- --coverage --coverage.reporter=lcov
-
-      - name: Upload coverage and test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}-coverage
-          path: |
-            ${{ matrix.target }}/coverage/lcov.info
-            ${{ matrix.target }}/vitest-report.xml
-          if-no-files-found: ignore
-
   docker:
-    needs: quality
+    name: Docker CI
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
+      PUSH_IMAGE: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        id: buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Render Docker Compose config
-        run: |
-          set -eo pipefail
-          trap 'rm -f .env' EXIT
-          cp .env.example .env
-          docker compose config > docker-compose.rendered.yml
+      - name: Log in to GHCR
+        if: env.PUSH_IMAGE == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image (Buildx action)
-        id: docker_build
+      - name: Build CI stage (lint, test, build)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
+          target: ci
+          push: false
           load: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=gha
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,scope=ci,mode=max
+          provenance: false
 
-      - name: Capture Docker build log
-        if: always()
-        env:
-          BUILDKIT_PROGRESS: plain
-        run: |
-          set -o pipefail
-          temp_output="$(mktemp -d)"
-          docker buildx build \
-            --builder "${{ steps.buildx.outputs.name }}" \
-            --file Dockerfile \
-            --progress plain \
-            --output="type=local,dest=${temp_output}" \
-            . | tee docker-build.log
-          rm -rf "${temp_output}"
-
-      - name: Upload Docker artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          name: docker-artifacts
-          path: |
-            docker-compose.rendered.yml
-            docker-build.log
-          if-no-files-found: warn
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build application image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: ${{ env.PUSH_IMAGE == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=gha,scope=ci
+            type=gha,scope=release
+          cache-to: type=gha,scope=release,mode=max
+          platforms: linux/amd64
+          provenance: false
