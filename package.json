@@ -11,7 +11,8 @@
     "build": "npm run build --prefix web && npm run build --prefix server",
     "lint": "eslint \"server/src/**/*.ts\" \"web/src/**/*.ts\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces",
+    "ci:test": "npm run test --workspaces -- --coverage --coverage.reporter=lcov"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",
