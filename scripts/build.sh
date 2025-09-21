@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-npm run build
+
+if [ "$#" -eq 0 ]; then
+  docker compose build app
+else
+  docker compose build "$@"
+fi

@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-npm run dev
+
+docker compose up --build "$@"

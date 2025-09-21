@@ -1,0 +1,11 @@
+services:
+  app:
+    image: jellyfin-p2p-watch:compose
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    restart: unless-stopped

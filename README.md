@@ -25,23 +25,19 @@ Jellyfin (origin) ──▶ Jellyfin P2P Watch server ──▶ Browser client w
    PUBLIC_URL=http://localhost:8080
    JELLYFIN_BASE_URL=https://jellyfin.example.com
    JELLYFIN_API_KEY=your-api-key
-   ALLOW_ORIGINS=http://localhost:5173,http://localhost:8080
+   ALLOW_ORIGINS=http://localhost:8080
    TRACKER_URLS=wss://tracker.openwebtorrent.com
    ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"}]
    ENABLE_HLS_PROXY=false
    ```
-2. Install dependencies with npm (Node 18+ recommended):
+2. Build and start the stack with Docker Compose (the helper script `./scripts/dev.sh` wraps the same command):
    ```bash
-   npm install
+   docker compose up --build
    ```
-3. Launch the dev environment (Vite + Nodemon):
-   ```bash
-   npm run dev
-   ```
-4. Open the app:
-   - Development: <http://localhost:5173>
-   - Or directly on the backend (serving built assets): <http://localhost:8080>
-5. Join a room via query params: `http://localhost:8080/?itemId=<ITEM_ID>&roomId=test&name=Alice`
+   - Override the published port with `APP_PORT=9000 docker compose up --build` if you need a different host port.
+   - Use `-d` to start the container in the background and `docker compose down` to stop it.
+3. Open the app: <http://localhost:8080> (or the host port you mapped via `APP_PORT`).
+4. Join a room via query params: `http://localhost:8080/?itemId=<ITEM_ID>&roomId=test&name=Alice`
 
 ### Direct manifest mode
 
@@ -64,35 +60,48 @@ If you already have a signed HLS manifest, pass it via `?m3u8=...` or fill it in
   - `src/main.ts` — Bootstraps the UI and loads runtime config.
 
 - **Scripts**
-  - `scripts/dev.sh` — helper to start dev mode.
-  - `scripts/build.sh` — helper to build the project.
+  - `scripts/dev.sh` — wrapper around `docker compose up --build` for local runs.
+  - `scripts/build.sh` — wrapper around `docker compose build` (defaults to the `app` service).
 
 ## Building & running
 
+The multi-stage Dockerfile builds the frontend and backend automatically. Use Docker Compose to produce and run the container image:
+
 ```bash
-npm run build       # Builds web (Vite) then server (tsc)
-npm run start --prefix server  # Run compiled server serving static assets
+./scripts/build.sh         # docker compose build app
+docker compose up -d app   # Start the stack in the background
+docker compose logs -f app # Follow logs
+docker compose down        # Stop and clean up containers and networks
 ```
 
-The Express server serves `web/dist` in production. Ensure you run `npm run build` before starting the backend.
+For one-off commands inside the container you can use `docker compose run --rm app <command>`.
 
-## Docker deployment
+## Docker Compose / DockerPult deployment
 
-The repository includes a multi-stage Dockerfile that builds the frontend and backend and packages only the production
-dependencies.
+The repository includes a multi-stage Dockerfile and a matching `docker-compose.yml`. The same definition works for local
+development, staging, or DockerPult-based production rollouts.
 
-1. Copy `.env.example` to `.env` (or prepare your own env file) and fill in the Jellyfin connection details.
-2. Build the image:
+1. Copy `.env.example` to `.env` and populate your Jellyfin connection and tracker details. The file is consumed via the
+   Compose `env_file` setting.
+2. Build or pull the image referenced by the Compose file:
    ```bash
-   docker build -t jellyfin-p2p-watch .
+   docker compose build app      # local build
+   docker compose pull app       # pull from a registry (e.g., DockerPult/CI pipeline)
    ```
-3. Run the container, exposing the HTTP port and passing configuration via environment variables or an env file:
+3. Start or update the stack:
    ```bash
-   docker run --rm -p 8080:8080 --env-file .env jellyfin-p2p-watch
+   docker compose up -d app
+   docker compose ps
+   ```
+4. Tail logs or restart the service when needed:
+   ```bash
+   docker compose logs -f app
+   docker compose restart app
    ```
 
-Adjust the published port (`-p host:8080`) or individual environment variables as needed for your deployment setup. The
-container listens on `$PORT` (default `8080`) and serves the compiled static frontend alongside the Node.js backend.
+Set `APP_PORT` before running Compose if you need a different host port: `APP_PORT=9000 docker compose up -d app`. The
+container listens on `$PORT` (default `8080`) and serves the compiled static frontend alongside the Node.js backend built
+inside the image.
 
 ## SyncPlay-like control flow
 
@@ -111,7 +120,7 @@ container listens on `$PORT` (default `8080`) and serves the compiled static fro
 
 ## Production deployment notes
 
-- Build the project and serve with the Node backend behind a reverse proxy (HTTPS strongly recommended).
+- Run the container behind a reverse proxy (HTTPS strongly recommended).
 - Example nginx configuration snippet:
   ```nginx
   server {
