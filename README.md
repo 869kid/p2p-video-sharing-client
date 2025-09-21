@@ -1,4 +1,4 @@
-# Jellyfin P2P Watch
+# Jellyfin P2P Watch 
 
 > Thin web client + Node backend that plays Jellyfin HLS/DASH while sharing segments across peers via WebRTC.
 
