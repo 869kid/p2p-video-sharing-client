@@ -76,6 +76,24 @@ npm run start --prefix server  # Run compiled server serving static assets
 
 The Express server serves `web/dist` in production. Ensure you run `npm run build` before starting the backend.
 
+## Docker deployment
+
+The repository includes a multi-stage Dockerfile that builds the frontend and backend and packages only the production
+dependencies.
+
+1. Copy `.env.example` to `.env` (or prepare your own env file) and fill in the Jellyfin connection details.
+2. Build the image:
+   ```bash
+   docker build -t jellyfin-p2p-watch .
+   ```
+3. Run the container, exposing the HTTP port and passing configuration via environment variables or an env file:
+   ```bash
+   docker run --rm -p 8080:8080 --env-file .env jellyfin-p2p-watch
+   ```
+
+Adjust the published port (`-p host:8080`) or individual environment variables as needed for your deployment setup. The
+container listens on `$PORT` (default `8080`) and serves the compiled static frontend alongside the Node.js backend.
+
 ## SyncPlay-like control flow
 
 - Clients connect to `/ws` and send `{ type: "join", roomId, userName }`.
