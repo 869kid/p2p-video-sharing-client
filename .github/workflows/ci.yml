@@ -46,3 +46,57 @@ jobs:
             ${{ matrix.target }}/coverage/lcov.info
             ${{ matrix.target }}/vitest-report.xml
           if-no-files-found: ignore
+
+  docker:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Render Docker Compose config
+        run: |
+          set -eo pipefail
+          trap 'rm -f .env' EXIT
+          cp .env.example .env
+          docker compose config > docker-compose.rendered.yml
+
+      - name: Build Docker image (Buildx action)
+        id: docker_build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=gha
+
+      - name: Capture Docker build log
+        if: always()
+        env:
+          BUILDKIT_PROGRESS: plain
+        run: |
+          set -o pipefail
+          temp_output="$(mktemp -d)"
+          docker buildx build \
+            --builder "${{ steps.buildx.outputs.name }}" \
+            --file Dockerfile \
+            --progress plain \
+            --output="type=local,dest=${temp_output}" \
+            . | tee docker-build.log
+          rm -rf "${temp_output}"
+
+      - name: Upload Docker artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-artifacts
+          path: |
+            docker-compose.rendered.yml
+            docker-build.log
+          if-no-files-found: warn
